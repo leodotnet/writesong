@@ -1,0 +1,1 @@
+Build a web app that user can write song and convert to music.  1. Based on pre-defined prompt, the app is able to convert a user text to suno-based lyrics.  2. Call API to convert lyrics to song.      The web app could be used by multiple users. Each user is able to manage their own lyrics.  Credential is supported (sign-on, login).    The app is python-based.
