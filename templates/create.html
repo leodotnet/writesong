@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Create Song</h2>
+<form method="post">
+  <div class="form-group">
+    <textarea class="form-control" name="text" rows="5" placeholder="Enter your text"></textarea>
+  </div>
+  <button class="btn btn-primary" type="submit">Generate</button>
+</form>
+{% endblock %}

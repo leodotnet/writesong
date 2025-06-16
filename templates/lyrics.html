@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Lyrics {{ lyric.id }}</h2>
+<p><strong>Original Text:</strong></p>
+<pre>{{ lyric.original_text }}</pre>
+<p><strong>Suno Lyrics:</strong></p>
+<pre>{{ lyric.suno_lyrics }}</pre>
+<p><strong>Song URL:</strong> {{ lyric.song_url }}</p>
+{% endblock %}

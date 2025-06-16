@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h1>Your Lyrics</h1>
+  <a class="btn btn-primary mb-3" href="{{ url_for('create') }}">Create New</a>
+  <ul class="list-group">
+  {% for lyr in lyrics_list %}
+    <li class="list-group-item">
+      <a href="{{ url_for('lyrics_detail', lyric_id=lyr.id) }}">Lyric {{ lyr.id }}</a>
+    </li>
+  {% else %}
+    <li class="list-group-item">No lyrics yet.</li>
+  {% endfor %}
+  </ul>
+{% endblock %}
