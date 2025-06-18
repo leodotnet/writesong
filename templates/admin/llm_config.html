@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>LLM配置管理</h2>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">添加新配置</h5>
+            <form method="POST">
+                <div class="mb-3">
+                    <label for="provider" class="form-label">提供商</label>
+                    <select class="form-select" id="provider" name="provider" required>
+                        <option value="openai">OpenAI</option>
+                        <option value="ollama">Ollama</option>
+                        <option value="gemini">Gemini</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3" id="api_key_group">
+                    <label for="api_key" class="form-label">API密钥</label>
+                    <input type="password" class="form-control" id="api_key" name="api_key">
+                </div>
+                
+                <div class="mb-3" id="base_url_group" style="display: none;">
+                    <label for="base_url" class="form-label">Ollama基础URL</label>
+                    <input type="text" class="form-control" id="base_url" name="base_url" placeholder="http://localhost:11434">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="model_name" class="form-label">模型名称</label>
+                    <input type="text" class="form-control" id="model_name" name="model_name" required>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">保存配置</button>
+            </form>
+        </div>
+    </div>
+    
+    <h3>现有配置</h3>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>提供商</th>
+                    <th>模型名称</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for config in configs %}
+                <tr>
+                    <td>{{ config.provider }}</td>
+                    <td>{{ config.model_name }}</td>
+                    <td>{{ "激活" if config.is_active else "未激活" }}</td>
+                    <td>
+                        <form action="{{ url_for('delete_llm_config', config_id=config.id) }}" method="POST" style="display: inline;">
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('确定要删除这个配置吗？')">删除</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+document.getElementById('provider').addEventListener('change', function() {
+    const provider = this.value;
+    const apiKeyGroup = document.getElementById('api_key_group');
+    const baseUrlGroup = document.getElementById('base_url_group');
+    
+    if (provider === 'ollama') {
+        apiKeyGroup.style.display = 'none';
+        baseUrlGroup.style.display = 'block';
+    } else {
+        apiKeyGroup.style.display = 'block';
+        baseUrlGroup.style.display = 'none';
+    }
+});
+</script>
+{% endblock %} 

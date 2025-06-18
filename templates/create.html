@@ -1,10 +1,167 @@
 {% extends 'base.html' %}
 {% block content %}
-<h2>Create Song</h2>
-<form method="post">
+<div id="llm-status" class="alert alert-info py-2 mb-3" style="font-size: 0.95rem;">
+  当前使用的LLM：
+  <span id="llm-provider">加载中...</span> <span id="llm-model"></span>
+  <select id="llm-select" class="ml-2" style="min-width:180px;display:none;"></select>
+</div>
+<h2>AI歌词与音乐创作</h2>
+<div class="card p-3 mb-3">
   <div class="form-group">
-    <textarea class="form-control" name="text" rows="5" placeholder="Enter your text"></textarea>
+    <label for="prompt">请输入你的创作灵感（Prompt）</label>
+    <input type="text" class="form-control" id="prompt" placeholder="如：写一首关于春天的歌">
   </div>
-  <button class="btn btn-primary" type="submit">Generate</button>
-</form>
+  <button class="btn btn-primary mb-2" id="generate-lyric-btn">
+    <span id="generate-lyric-text">生成歌词</span>
+    <span id="generate-lyric-spinner" class="spinner-border spinner-border-sm" style="display:none;" role="status" aria-hidden="true"></span>
+  </button>
+</div>
+
+<div id="lyric-section" style="display:none;">
+  <div class="form-group">
+    <label for="lyric-text">AI生成歌词（可修改）</label>
+    <textarea class="form-control" id="lyric-text" rows="8"></textarea>
+  </div>
+  <button class="btn btn-secondary" id="regenerate-lyric-btn">
+    <span id="regenerate-lyric-text">重新生成歌词</span>
+    <span id="regenerate-lyric-spinner" class="spinner-border spinner-border-sm" style="display:none;" role="status" aria-hidden="true"></span>
+  </button>
+  <button class="btn btn-success" id="generate-music-btn">生成音乐</button>
+  <button class="btn btn-info" id="save-btn">保存</button>
+</div>
+
+<div id="music-section" style="display:none;" class="mt-3">
+  <h4>生成的音乐</h4>
+  <audio id="music-player" controls style="width:100%;"></audio>
+  <div id="music-link"></div>
+</div>
+
+<div id="message" class="mt-3"></div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+function showMessage(msg, type="info") {
+  document.getElementById('message').innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+}
+
+// 获取LLM状态和下拉菜单
+function refreshLLMStatus() {
+  $.get('/llm_status', function(data) {
+    if (data.success) {
+      $('#llm-provider').text(data.provider);
+      $('#llm-model').text(data.model_name ? '('+data.model_name+')' : '');
+      // 下拉菜单
+      let $sel = $('#llm-select');
+      $sel.empty();
+      if (data.llms && data.llms.length > 0) {
+        data.llms.forEach(function(llm) {
+          let txt = llm.provider + (llm.model_name ? ' ('+llm.model_name+')' : '');
+          $sel.append(`<option value="${llm.id}" ${llm.id==data.current_id?'selected':''}>${txt}</option>`);
+        });
+        $sel.show();
+      } else {
+        $sel.hide();
+      }
+    } else {
+      $('#llm-provider').text('未配置');
+      $('#llm-model').text('');
+      $('#llm-select').hide();
+    }
+  });
+}
+
+$(function() {
+  refreshLLMStatus();
+  // 切换LLM
+  $('#llm-select').on('change', function() {
+    let llm_id = $(this).val();
+    $.post('/set_llm', {llm_id: llm_id}, function(data) {
+      if (data.success) {
+        refreshLLMStatus();
+        showMessage('已切换LLM', 'success');
+      } else {
+        showMessage(data.error, 'danger');
+      }
+    });
+  });
+});
+
+// 生成歌词
+$('#generate-lyric-btn').click(function() {
+  const prompt = $('#prompt').val();
+  if (!prompt) { showMessage('请输入提示词', 'warning'); return; }
+  showMessage('正在生成歌词...');
+  $('#generate-lyric-btn').attr('disabled', true);
+  $('#generate-lyric-spinner').show();
+  $('#generate-lyric-text').hide();
+  $.post('/generate_lyric', {prompt: prompt}, function(data) {
+    if (data.success) {
+      $('#lyric-text').val(data.lyric);
+      $('#lyric-section').show();
+      showMessage('歌词生成成功', 'success');
+    } else {
+      showMessage(data.error, 'danger');
+    }
+  }).always(function() {
+    $('#generate-lyric-btn').attr('disabled', false);
+    $('#generate-lyric-spinner').hide();
+    $('#generate-lyric-text').show();
+  });
+});
+
+// 重新生成歌词
+$('#regenerate-lyric-btn').click(function() {
+  const prompt = $('#prompt').val();
+  if (!prompt) { showMessage('请输入提示词', 'warning'); return; }
+  showMessage('正在重新生成歌词...');
+  $('#regenerate-lyric-btn').attr('disabled', true);
+  $('#regenerate-lyric-spinner').show();
+  $('#regenerate-lyric-text').hide();
+  $.post('/generate_lyric', {prompt: prompt}, function(data) {
+    if (data.success) {
+      $('#lyric-text').val(data.lyric);
+      showMessage('歌词已重新生成', 'success');
+    } else {
+      showMessage(data.error, 'danger');
+    }
+  }).always(function() {
+    $('#regenerate-lyric-btn').attr('disabled', false);
+    $('#regenerate-lyric-spinner').hide();
+    $('#regenerate-lyric-text').show();
+  });
+});
+
+// 生成音乐
+$('#generate-music-btn').click(function() {
+  const lyric = $('#lyric-text').val();
+  if (!lyric) { showMessage('请先生成或填写歌词', 'warning'); return; }
+  showMessage('正在生成音乐...');
+  $.post('/generate_music', {lyric: lyric}, function(data) {
+    if (data.success) {
+      $('#music-player').attr('src', data.song_url);
+      $('#music-section').show();
+      $('#music-link').html(`<a href="${data.song_url}" target="_blank">下载音乐</a>`);
+      showMessage('音乐生成成功', 'success');
+    } else {
+      showMessage(data.error, 'danger');
+    }
+  });
+});
+
+// 保存歌词和音乐
+$('#save-btn').click(function() {
+  const lyric = $('#lyric-text').val();
+  const song_url = $('#music-player').attr('src');
+  if (!lyric) { showMessage('请先生成或填写歌词', 'warning'); return; }
+  $.post('/save_song', {lyric: lyric, song_url: song_url}, function(data) {
+    if (data.success) {
+      showMessage('保存成功', 'success');
+    } else {
+      showMessage(data.error, 'danger');
+    }
+  });
+});
+</script>
 {% endblock %}
