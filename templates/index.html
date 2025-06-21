@@ -1,14 +1,36 @@
 {% extends 'base.html' %}
 {% block content %}
-  <h1>Your Lyrics</h1>
-  <a class="btn btn-primary mb-3" href="{{ url_for('create') }}">Create New</a>
-  <ul class="list-group">
-  {% for lyr in lyrics_list %}
-    <li class="list-group-item">
-      <a href="{{ url_for('lyrics_detail', lyric_id=lyr.id) }}">Lyric {{ lyr.id }}</a>
-    </li>
+<div class="container">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>我的歌词</h1>
+    <a class="btn btn-primary" href="{{ url_for('create') }}">创建新歌词</a>
+  </div>
+  
+  {% if lyrics_list %}
+    <div class="row">
+      {% for lyr in lyrics_list %}
+        <div class="col-md-6 col-lg-4 mb-3">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">{{ lyr.name }}</h5>
+              <p class="card-text text-muted small">
+                <i class="far fa-clock"></i> {{ lyr.created_at.strftime('%Y-%m-%d %H:%M') if lyr.created_at else '未知时间' }}
+              </p>
+              <p class="card-text">
+                {{ lyr.original_text[:100] }}{% if lyr.original_text|length > 100 %}...{% endif %}
+              </p>
+              <a href="{{ url_for('lyrics_detail', lyric_id=lyr.id) }}" class="btn btn-outline-primary btn-sm">查看详情</a>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
   {% else %}
-    <li class="list-group-item">No lyrics yet.</li>
-  {% endfor %}
-  </ul>
+    <div class="text-center py-5">
+      <i class="fas fa-music fa-3x text-muted mb-3"></i>
+      <h4 class="text-muted">还没有歌词</h4>
+      <p class="text-muted">点击"创建新歌词"开始你的音乐创作之旅！</p>
+    </div>
+  {% endif %}
+</div>
 {% endblock %}

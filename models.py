@@ -15,10 +15,12 @@ class User(UserMixin, db.Model):
 
 class Lyrics(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False, default='未命名歌词')
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     original_text = db.Column(db.Text, nullable=False)
     suno_lyrics = db.Column(db.Text)
     song_url = db.Column(db.String(200))
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
 
 
 class LLMConfig(db.Model):

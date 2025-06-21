@@ -64,7 +64,7 @@ def generate_suno_lyrics(text):
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7,
             )
-            return resp['choices'][0]['message']['content']
+            result = resp['choices'][0]['message']['content']
         elif llm_config.provider == 'ollama':
             base_url = llm_config.base_url.rstrip('/') if llm_config.base_url else 'http://localhost:11434/v1'
             payload = {
@@ -81,12 +81,22 @@ def generate_suno_lyrics(text):
             response.raise_for_status()
             data = response.json()
             if 'choices' in data and len(data['choices']) > 0:
-                return data['choices'][0]['message']['content']
+                result = data['choices'][0]['message']['content']
             else:
                 return 'Ollama未返回歌词内容'
         elif llm_config.provider == 'gemini':
             # 实现Gemini API调用
             pass
+        else:
+            return '不支持的LLM提供商'
+        
+        # 处理<think>标签，只保留</think>后的内容
+        if '<think>' in result and '</think>' in result:
+            think_end = result.find('</think>')
+            if think_end != -1:
+                result = result[think_end + 8:].strip()  # 8是'</think>'的长度
+        
+        return result
     except Exception as e:
         return f"生成歌词时出错: {e}"
 
@@ -263,13 +273,20 @@ def generate_music_api():
 @app.route('/save_song', methods=['POST'])
 @login_required
 def save_song_api():
+    lyric_name = request.form.get('lyric_name', '未命名歌词')
     lyric = request.form.get('lyric')
     song_url = request.form.get('song_url')
-    logger.info(f"[save_song] user={current_user.username}, lyric={lyric}, song_url={song_url}")
+    logger.info(f"[save_song] user={current_user.username}, lyric_name={lyric_name}, lyric={lyric}, song_url={song_url}")
     if not lyric:
         logger.warning("[save_song] 缺少歌词内容")
         return jsonify(success=False, error='缺少歌词内容')
-    new_lyric = Lyrics(user_id=current_user.id, original_text=lyric, suno_lyrics=lyric, song_url=song_url)
+    new_lyric = Lyrics(
+        user_id=current_user.id, 
+        name=lyric_name,
+        original_text=lyric, 
+        suno_lyrics=lyric, 
+        song_url=song_url
+    )
     db.session.add(new_lyric)
     db.session.commit()
     logger.info(f"[save_song] 保存成功 user_id={current_user.id}")
