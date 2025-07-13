@@ -1,0 +1,331 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 id="lyric-title">{{ lyric.name }}</h2>
+    <div>
+      <button class="btn btn-outline-primary" id="edit-btn">编辑</button>
+      <button class="btn btn-success" id="save-btn" style="display:none;">保存</button>
+      <button class="btn btn-secondary" id="cancel-btn" style="display:none;">取消</button>
+      <button class="btn btn-danger" id="delete-btn" onclick="deleteLyric()">删除</button>
+      <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">返回列表</a>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-12">
+      <div class="card">
+        <div class="card-header">
+          <h5>歌词名称</h5>
+        </div>
+        <div class="card-body">
+          <div id="name-display" style="white-space: pre-wrap;">{{ lyric.name }}</div>
+          <input type="text" class="form-control" id="name-edit" value="{{ lyric.name }}" style="display:none;">
+        </div>
+      </div>
+    </div>
+    
+
+  </div>
+
+  <div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5>AI生成歌词</h5>
+      <button class="btn btn-primary" id="generate-song-btn" onclick="showGenerateModal()">
+        <span id="generate-btn-text">生成歌曲</span>
+        <span id="generate-btn-loading" style="display:none;">
+          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+          生成中...
+        </span>
+      </button>
+    </div>
+    <div class="card-body">
+      <div id="lyrics-display" style="white-space: pre-wrap;">{{ lyric.suno_lyrics }}</div>
+      <textarea class="form-control" id="lyrics-edit" rows="8" style="display:none;">{{ lyric.suno_lyrics }}</textarea>
+    </div>
+  </div>
+
+  <!-- 生成歌曲参数模态框 -->
+  <div class="modal fade" id="generateModal" tabindex="-1" aria-labelledby="generateModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="generateModalLabel">生成歌曲参数</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="generate-form">
+            <div class="mb-3">
+              <label for="format" class="form-label">音频格式</label>
+              <select class="form-select" id="format" name="format" required>
+                <option value="mp3">MP3</option>
+                <option value="wav">WAV</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="prompt" class="form-label">音乐风格提示词</label>
+              <textarea class="form-control" id="prompt" name="prompt" rows="3" placeholder="描述音乐风格、乐器、节奏等">baby, pop, melodic, guitar, drums, bass, keyboard, percussion, 105 BPM, upbeat, groovy, cozy</textarea>
+              <div class="form-text">描述音乐风格、乐器、节奏、BPM等</div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-primary" onclick="generateSong()">开始生成</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if lyric.song_url %}
+  <div class="card mt-4">
+    <div class="card-header">
+      <h5>生成的音乐</h5>
+    </div>
+    <div class="card-body">
+      <audio controls style="width:100%;">
+        <source src="{{ lyric.song_url }}" type="audio/mpeg">
+        您的浏览器不支持音频播放。
+      </audio>
+      <div class="mt-2">
+        <a href="{{ lyric.song_url }}" target="_blank" class="btn btn-outline-primary btn-sm">下载音乐</a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div id="message" class="mt-3"></div>
+</div>
+
+<!-- 隐藏的数据容器，用于安全地传递数据到JavaScript -->
+<div id="lyric-data" 
+     data-name="{{ lyric.name|e }}" 
+     data-suno-lyrics="{{ lyric.suno_lyrics|e }}" 
+     style="display:none;">
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 等待jQuery加载完成
+function initLyricPage() {
+  if (typeof $ === 'undefined') {
+    console.log('jQuery not loaded yet, retrying...');
+    setTimeout(initLyricPage, 100);
+    return;
+  }
+  
+  console.log('jQuery loaded, version:', $.fn.jquery);
+  
+  function showMessage(msg, type="info") {
+    document.getElementById('message').innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+  }
+
+  // 从data属性安全地获取数据
+  const $dataContainer = $('#lyric-data');
+  let originalData = {
+    name: $dataContainer.data('name'),
+    suno_lyrics: $dataContainer.data('suno-lyrics')
+  };
+
+  let isEditing = false;
+
+  function toggleEditMode(editing) {
+    console.log('toggleEditMode called with:', editing);
+    isEditing = editing;
+    
+    if (editing) {
+      // 显示编辑模式
+      $('#edit-btn').hide();
+      $('#save-btn, #cancel-btn').show();
+      $('#name-display, #lyrics-display').hide();
+      $('#name-edit, #lyrics-edit').show();
+    } else {
+      // 显示查看模式
+      $('#edit-btn').show();
+      $('#save-btn, #cancel-btn').hide();
+      $('#name-display, #lyrics-display').show();
+      $('#name-edit, #lyrics-edit').hide();
+    }
+  }
+
+  $('#edit-btn').on('click', function() {
+    console.log('Edit button clicked');
+    toggleEditMode(true);
+  });
+
+  $('#cancel-btn').on('click', function() {
+    console.log('Cancel button clicked');
+    // 恢复原始数据
+    $('#name-edit').val(originalData.name);
+    $('#lyrics-edit').val(originalData.suno_lyrics);
+    toggleEditMode(false);
+    showMessage('已取消编辑', 'info');
+  });
+
+  $('#save-btn').on('click', function() {
+    console.log('Save button clicked');
+    const name = $('#name-edit').val();
+    const suno_lyrics = $('#lyrics-edit').val();
+    
+    if (!name.trim()) {
+      showMessage('歌词名称不能为空', 'warning');
+      return;
+    }
+    
+    if (!suno_lyrics.trim()) {
+      showMessage('歌词内容不能为空', 'warning');
+      return;
+    }
+    
+    showMessage('正在保存...', 'info');
+    
+    $.post('/update_lyric/{{ lyric.id }}', {
+      name: name,
+      suno_lyrics: suno_lyrics
+    }, function(data) {
+      if (data.success) {
+        // 更新显示内容
+        $('#lyric-title').text(name);
+        $('#name-display').text(name);
+        $('#lyrics-display').text(suno_lyrics);
+        
+        // 更新原始数据
+        originalData = { name, suno_lyrics };
+        
+        toggleEditMode(false);
+        showMessage('保存成功', 'success');
+      } else {
+        showMessage(data.error, 'danger');
+      }
+    }).fail(function() {
+      showMessage('保存失败，请重试', 'danger');
+    });
+  });
+
+  // 显示生成歌曲参数模态框
+  window.showGenerateModal = function() {
+    const lyrics = $('#lyrics-display').text();
+    if (!lyrics.trim()) {
+      showMessage('没有歌词内容，无法生成歌曲', 'warning');
+      return;
+    }
+    
+    // 显示模态框
+    $('#generateModal').modal('show');
+  };
+
+  // 生成歌曲功能
+  window.generateSong = function() {
+    const lyrics = $('#lyrics-display').text();
+    const format = $('#format').val();
+    const prompt = $('#prompt').val();
+    
+    if (!lyrics.trim()) {
+      showMessage('没有歌词内容，无法生成歌曲', 'warning');
+      return;
+    }
+    
+    if (!prompt.trim()) {
+      showMessage('请输入音乐风格提示词', 'warning');
+      return;
+    }
+    
+    // 关闭模态框
+    $('#generateModal').modal('hide');
+    
+    // 显示加载状态
+    $('#generate-btn-text').hide();
+    $('#generate-btn-loading').show();
+    $('#generate-song-btn').prop('disabled', true);
+    
+    showMessage('正在生成歌曲，请稍候...', 'info');
+    
+    $.post('/generate_song_with_acestep/{{ lyric.id }}', {
+      lyrics: lyrics,
+      format: format,
+      prompt: prompt
+    }, function(data) {
+      if (data.success) {
+        showMessage('歌曲生成成功！', 'success');
+        
+        // 更新歌曲URL并显示音频播放器
+        updateSongPlayer(data.song_url);
+        
+        // 更新数据库中的歌曲URL
+        $.post('/update_song_url/{{ lyric.id }}', {
+          song_url: data.song_url
+        });
+      } else {
+        showMessage(data.error || '歌曲生成失败', 'danger');
+      }
+    }).fail(function() {
+      showMessage('歌曲生成失败，请重试', 'danger');
+    }).always(function() {
+      // 恢复按钮状态
+      $('#generate-btn-text').show();
+      $('#generate-btn-loading').hide();
+      $('#generate-song-btn').prop('disabled', false);
+    });
+  };
+
+  function updateSongPlayer(songUrl) {
+    // 检查是否已有音频播放器
+    let audioSection = $('#audio-section');
+    if (audioSection.length === 0) {
+      // 创建新的音频播放器区域
+      const audioHtml = `
+        <div class="card mt-4" id="audio-section">
+          <div class="card-header">
+            <h5>生成的音乐</h5>
+          </div>
+          <div class="card-body">
+            <audio controls style="width:100%;">
+              <source src="${songUrl}" type="audio/${songUrl.split('.').pop()}">
+              您的浏览器不支持音频播放。
+            </audio>
+            <div class="mt-2">
+              <a href="${songUrl}" target="_blank" class="btn btn-outline-primary btn-sm">下载音乐</a>
+            </div>
+          </div>
+        </div>
+      `;
+      $('#message').after(audioHtml);
+    } else {
+      // 更新现有音频播放器
+      audioSection.find('audio source').attr('src', songUrl);
+      audioSection.find('audio source').attr('type', `audio/${songUrl.split('.').pop()}`);
+      audioSection.find('audio')[0].load();
+      audioSection.find('a').attr('href', songUrl);
+    }
+  }
+
+  // 删除歌词功能
+  window.deleteLyric = function() {
+    if (!confirm('确定要删除这首歌词吗？此操作不可恢复！')) {
+      return;
+    }
+    
+    showMessage('正在删除...', 'info');
+    
+    $.post('/delete_lyric/{{ lyric.id }}', function(data) {
+      if (data.success) {
+        showMessage('删除成功，正在跳转...', 'success');
+        setTimeout(function() {
+          window.location.href = '{{ url_for("index") }}';
+        }, 1500);
+      } else {
+        showMessage(data.error || '删除失败', 'danger');
+      }
+    }).fail(function() {
+      showMessage('删除失败，请重试', 'danger');
+    });
+  };
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+  initLyricPage();
+});
+</script>
+{% endblock %}

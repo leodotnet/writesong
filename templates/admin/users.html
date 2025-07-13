@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>用户管理</h2>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>用户名</th>
+                    <th>管理员状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.username }}</td>
+                    <td>{{ "是" if user.is_admin else "否" }}</td>
+                    <td>
+                        {% if user.id != current_user.id %}
+                        <form action="{{ url_for('toggle_admin', user_id=user.id) }}" method="POST" style="display: inline;">
+                            <button type="submit" class="btn btn-sm btn-warning">
+                                {{ "取消管理员" if user.is_admin else "设为管理员" }}
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %} 
