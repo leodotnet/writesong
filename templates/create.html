@@ -30,15 +30,10 @@
     <span id="regenerate-lyric-text">重新生成歌词</span>
     <span id="regenerate-lyric-spinner" class="spinner-border spinner-border-sm" style="display:none;" role="status" aria-hidden="true"></span>
   </button>
-  <button class="btn btn-success" id="generate-music-btn">生成音乐</button>
   <button class="btn btn-info" id="save-btn">保存</button>
 </div>
 
-<div id="music-section" style="display:none;" class="mt-3">
-  <h4>生成的音乐</h4>
-  <audio id="music-player" controls style="width:100%;"></audio>
-  <div id="music-link"></div>
-</div>
+
 
 <div id="message" class="mt-3"></div>
 
@@ -137,31 +132,15 @@ $('#regenerate-lyric-btn').click(function() {
   });
 });
 
-// 生成音乐
-$('#generate-music-btn').click(function() {
-  const lyric = $('#lyric-text').val();
-  if (!lyric) { showMessage('请先生成或填写歌词', 'warning'); return; }
-  showMessage('正在生成音乐...');
-  $.post('/generate_music', {lyric: lyric}, function(data) {
-    if (data.success) {
-      $('#music-player').attr('src', data.song_url);
-      $('#music-section').show();
-      $('#music-link').html(`<a href="${data.song_url}" target="_blank">下载音乐</a>`);
-      showMessage('音乐生成成功', 'success');
-    } else {
-      showMessage(data.error, 'danger');
-    }
-  });
-});
 
-// 保存歌词和音乐
+
+// 保存歌词
 $('#save-btn').click(function() {
   const lyric_name = $('#lyric-name').val();
   const lyric = $('#lyric-text').val();
-  const song_url = $('#music-player').attr('src');
   if (!lyric) { showMessage('请先生成或填写歌词', 'warning'); return; }
   if (!lyric_name) { showMessage('请输入歌词名称', 'warning'); return; }
-  $.post('/save_song', {lyric_name: lyric_name, lyric: lyric, song_url: song_url}, function(data) {
+  $.post('/save_song', {lyric_name: lyric_name, lyric: lyric}, function(data) {
     if (data.success) {
       showMessage('保存成功', 'success');
       // 保存成功后跳转到首页

@@ -41,6 +41,7 @@
           <div class="dropdown-menu" aria-labelledby="adminDropdown">
             <a class="dropdown-item" href="{{ url_for('admin_users') }}">用户管理</a>
             <a class="dropdown-item" href="{{ url_for('admin_llm_config') }}">LLM配置</a>
+            <a class="dropdown-item" href="{{ url_for('admin_music_api_config') }}">音乐API配置</a>
           </div>
         </li>
         {% endif %}
@@ -79,5 +80,6 @@ $(document).ready(function() {
     console.log('Bootstrap dropdown available:', typeof $.fn.dropdown !== 'undefined');
 });
 </script>
+{% block scripts %}{% endblock %}
 </body>
 </html>

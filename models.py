@@ -29,6 +29,18 @@ class LLMConfig(db.Model):
     api_key = db.Column(db.String(200))  # For OpenAI and Gemini
     base_url = db.Column(db.String(200))  # For Ollama
     model_name = db.Column(db.String(100))  # Model name for each provider
+    system_prompt = db.Column(db.Text, default="Generate suno-style lyric based on the following description:")  # System prompt for lyric generation
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+
+
+class MusicAPIConfig(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    provider = db.Column(db.String(20), nullable=False)  # 'acestep', 'suno', etc.
+    name = db.Column(db.String(100), nullable=False)  # 配置名称
+    api_url = db.Column(db.String(200), nullable=False)  # API服务地址
+    api_key = db.Column(db.String(200))  # API密钥（如果需要）
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
