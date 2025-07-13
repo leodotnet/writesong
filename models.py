@@ -29,7 +29,7 @@ class LLMConfig(db.Model):
     api_key = db.Column(db.String(200))  # For OpenAI and Gemini
     base_url = db.Column(db.String(200))  # For Ollama
     model_name = db.Column(db.String(100))  # Model name for each provider
-    system_prompt = db.Column(db.Text, default="Generate suno-style lyric based on the following description:")  # System prompt for lyric generation
+    system_prompt = db.Column(db.Text, default="# Requirement \n- Support lyric structure tags like [verse], [chorus], and [bridge] to separate different parts of the lyrics.\n- Output the lyric only. \n\n# Task\nGenerate lyrics based on the following description: {prompt}")  # System prompt for lyric generation
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
