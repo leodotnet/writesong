@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4>网络状态检测</h4>
+                </div>
+                <div class="card-body">
+                    <div id="network-status">
+                        <div class="alert alert-info">
+                            <strong>正在检测网络状态...</strong>
+                        </div>
+                    </div>
+                    
+                    <div id="resource-status" class="mt-4">
+                        <h5>资源加载状态</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>资源</th>
+                                        <th>状态</th>
+                                        <th>加载时间</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="resource-list">
+                                    <tr>
+                                        <td>Bootstrap CSS</td>
+                                        <td><span class="badge badge-warning">检测中</span></td>
+                                        <td>-</td>
+                                    </tr>
+                                    <tr>
+                                        <td>jQuery</td>
+                                        <td><span class="badge badge-warning">检测中</span></td>
+                                        <td>-</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Bootstrap JS</td>
+                                        <td><span class="badge badge-warning">检测中</span></td>
+                                        <td>-</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div id="offline-tips" class="mt-4" style="display:none;">
+                        <div class="alert alert-warning">
+                            <h5>离线模式提示</h5>
+                            <ul>
+                                <li>当前处于离线状态，部分功能可能受限</li>
+                                <li>已加载的页面内容仍然可以正常使用</li>
+                                <li>网络恢复后，页面会自动重新加载外部资源</li>
+                                <li>如果遇到样式问题，请刷新页面</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button class="btn btn-primary" onclick="checkNetworkStatus()">重新检测</button>
+                        <button class="btn btn-secondary" onclick="window.location.reload()">刷新页面</button>
+                        <a href="{{ url_for('index') }}" class="btn btn-outline-primary">返回首页</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function checkNetworkStatus() {
+    const statusDiv = document.getElementById('network-status');
+    const resourceList = document.getElementById('resource-list');
+    const offlineTips = document.getElementById('offline-tips');
+    
+    // 检测网络连接
+    if (navigator.onLine) {
+        statusDiv.innerHTML = '<div class="alert alert-success"><strong>✅ 网络连接正常</strong></div>';
+        offlineTips.style.display = 'none';
+    } else {
+        statusDiv.innerHTML = '<div class="alert alert-danger"><strong>❌ 网络连接断开</strong></div>';
+        offlineTips.style.display = 'block';
+    }
+    
+    // 检测资源加载状态
+    checkResourceStatus();
+}
+
+function checkResourceStatus() {
+    const resources = [
+        { name: 'Bootstrap CSS', url: 'https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css', local: '/static/css/bootstrap.min.css' },
+        { name: 'jQuery', url: 'https://code.jquery.com/jquery-3.6.0.min.js', local: '/static/js/jquery.min.js' },
+        { name: 'Bootstrap JS', url: 'https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.min.js', local: '/static/js/bootstrap.min.js' }
+    ];
+    
+    resources.forEach((resource, index) => {
+        const row = document.querySelector(`#resource-list tr:nth-child(${index + 1})`);
+        const statusCell = row.querySelector('td:nth-child(2)');
+        const timeCell = row.querySelector('td:nth-child(3)');
+        
+        // 测试在线资源
+        testResource(resource.url, resource.local, statusCell, timeCell);
+    });
+}
+
+function testResource(onlineUrl, localUrl, statusCell, timeCell) {
+    const startTime = Date.now();
+    
+    // 创建测试元素
+    const testElement = document.createElement(onlineUrl.includes('.css') ? 'link' : 'script');
+    
+    if (onlineUrl.includes('.css')) {
+        testElement.rel = 'stylesheet';
+        testElement.href = onlineUrl;
+    } else {
+        testElement.src = onlineUrl;
+    }
+    
+    testElement.onload = function() {
+        const loadTime = Date.now() - startTime;
+        statusCell.innerHTML = '<span class="badge badge-success">在线加载成功</span>';
+        timeCell.textContent = loadTime + 'ms';
+        
+        // 移除测试元素
+        document.head.removeChild(testElement);
+    };
+    
+    testElement.onerror = function() {
+        // 尝试本地资源
+        testLocalResource(localUrl, statusCell, timeCell, startTime);
+        
+        // 移除测试元素
+        if (document.head.contains(testElement)) {
+            document.head.removeChild(testElement);
+        }
+    };
+    
+    // 设置超时
+    setTimeout(function() {
+        if (document.head.contains(testElement)) {
+            testElement.onerror();
+        }
+    }, 5000);
+    
+    document.head.appendChild(testElement);
+}
+
+function testLocalResource(localUrl, statusCell, timeCell, startTime) {
+    const testElement = document.createElement(localUrl.includes('.css') ? 'link' : 'script');
+    
+    if (localUrl.includes('.css')) {
+        testElement.rel = 'stylesheet';
+        testElement.href = localUrl;
+    } else {
+        testElement.src = localUrl;
+    }
+    
+    testElement.onload = function() {
+        const loadTime = Date.now() - startTime;
+        statusCell.innerHTML = '<span class="badge badge-info">本地加载成功</span>';
+        timeCell.textContent = loadTime + 'ms';
+        
+        // 移除测试元素
+        document.head.removeChild(testElement);
+    };
+    
+    testElement.onerror = function() {
+        const loadTime = Date.now() - startTime;
+        statusCell.innerHTML = '<span class="badge badge-danger">加载失败</span>';
+        timeCell.textContent = '超时';
+        
+        // 移除测试元素
+        if (document.head.contains(testElement)) {
+            document.head.removeChild(testElement);
+        }
+    };
+    
+    // 设置超时
+    setTimeout(function() {
+        if (document.head.contains(testElement)) {
+            testElement.onerror();
+        }
+    }, 3000);
+    
+    document.head.appendChild(testElement);
+}
+
+// 页面加载完成后自动检测
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(checkNetworkStatus, 500);
+});
+</script>
+{% endblock %} 

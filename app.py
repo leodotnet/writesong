@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, redirect, url_for, request, session, flash, jsonify
+from flask import Flask, render_template, redirect, url_for, request, session, flash, jsonify, send_from_directory
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import openai
@@ -13,6 +13,9 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'devsecret')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# 添加静态文件目录
+app.static_folder = 'static'
 
 db.init_app(app)
 
@@ -508,6 +511,11 @@ def serve_song(filename):
     
     song_dir = os.path.join(os.getcwd(), 'song')
     return send_from_directory(song_dir, filename)
+
+@app.route('/network-status')
+def network_status():
+    """网络状态检测页面"""
+    return render_template('network_status.html')
 
 
 @app.route('/delete_lyric/<int:lyric_id>', methods=['POST'])
