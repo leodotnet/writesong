@@ -8,6 +8,7 @@ from functools import wraps
 import logging
 import requests
 import google.generativeai as genai
+from datetime import datetime
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'devsecret')
@@ -430,16 +431,46 @@ def generate_song_with_acestep(lyric_id):
     
     logger.info(f"[generate_song_with_acestep] 使用音乐API: {music_config.provider} - {music_config.name} ({music_config.api_url})")
     
+    # 处理参考音频文件
+    ref_audio_input = None
+    if 'ref_audio' in request.files:
+        ref_audio_file = request.files['ref_audio']
+        if ref_audio_file and ref_audio_file.filename:
+            logger.info(f"[generate_song_with_acestep] 收到参考音频文件: {ref_audio_file.filename}")
+            
+            # 确保uploads目录存在
+            uploads_dir = os.path.join(os.getcwd(), 'uploads')
+            os.makedirs(uploads_dir, exist_ok=True)
+            
+            # 生成唯一的文件名
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            file_extension = os.path.splitext(ref_audio_file.filename)[1]
+            ref_filename = f"ref_audio_{lyric_id}_{timestamp}{file_extension}"
+            ref_audio_path = os.path.join(uploads_dir, ref_filename)
+            
+            # 保存上传的文件
+            ref_audio_file.save(ref_audio_path)
+            ref_audio_input = ref_audio_path
+            logger.info(f"[generate_song_with_acestep] 参考音频已保存到: {ref_audio_path}")
+    
     try:
         from gradio_client import Client
         import shutil
-        import os
-        from datetime import datetime
         
         # 连接到配置的音乐API服务
         client = Client(music_config.api_url)
         
         # 调用AceStep API生成歌曲
+        # 处理ref_audio_input参数
+        if ref_audio_input and os.path.exists(ref_audio_input):
+            # 如果参考音频文件存在，使用handle_file处理
+            from gradio_client import handle_file
+            ref_audio_param = handle_file(ref_audio_input)
+            logger.info(f"[generate_song_with_acestep] 使用参考音频文件: {ref_audio_input}")
+        else:
+            ref_audio_param = None
+            logger.info(f"[generate_song_with_acestep] 未使用参考音频文件")
+        
         result = client.predict(
             format=format_type,
             audio_duration=-1,
@@ -462,7 +493,7 @@ def generate_song_with_acestep(lyric_id):
             guidance_scale_lyric=0,
             audio2audio_enable=False,
             ref_audio_strength=0.5,
-            ref_audio_input=None,
+            ref_audio_input=ref_audio_param,
             lora_name_or_path="none",
             lora_weight=1,
             api_name="/__call__"
@@ -512,6 +543,16 @@ def serve_song(filename):
     song_dir = os.path.join(os.getcwd(), 'song')
     return send_from_directory(song_dir, filename)
 
+
+@app.route('/uploads/<filename>')
+def serve_upload(filename):
+    """提供uploads目录下的文件访问"""
+    import os
+    from flask import send_from_directory
+    
+    uploads_dir = os.path.join(os.getcwd(), 'uploads')
+    return send_from_directory(uploads_dir, filename)
+
 @app.route('/network-status')
 def network_status():
     """网络状态检测页面"""
@@ -534,6 +575,21 @@ def delete_lyric(lyric_id):
             if os.path.exists(song_path):
                 os.remove(song_path)
                 logger.info(f"[delete_lyric] 删除音频文件: {song_path}")
+        
+        # 清理可能存在的参考音频文件
+        import os
+        import glob
+        uploads_dir = os.path.join(os.getcwd(), 'uploads')
+        if os.path.exists(uploads_dir):
+            # 查找与该歌词ID相关的参考音频文件
+            pattern = os.path.join(uploads_dir, f"ref_audio_{lyric_id}_*")
+            ref_files = glob.glob(pattern)
+            for ref_file in ref_files:
+                try:
+                    os.remove(ref_file)
+                    logger.info(f"[delete_lyric] 删除参考音频文件: {ref_file}")
+                except Exception as e:
+                    logger.warning(f"[delete_lyric] 删除参考音频文件失败: {e}")
         
         # 删除数据库记录
         db.session.delete(lyric)

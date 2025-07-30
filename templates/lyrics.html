@@ -54,7 +54,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <form id="generate-form">
+          <form id="generate-form" enctype="multipart/form-data">
             <div class="mb-3">
               <label for="format" class="form-label">音频格式</label>
               <select class="form-select" id="format" name="format" required>
@@ -66,6 +66,11 @@
               <label for="prompt" class="form-label">音乐风格提示词</label>
               <textarea class="form-control" id="prompt" name="prompt" rows="3" placeholder="描述音乐风格、乐器、节奏等">baby, pop, melodic, guitar, drums, bass, keyboard, percussion, 105 BPM, upbeat, groovy, cozy</textarea>
               <div class="form-text">描述音乐风格、乐器、节奏、BPM等</div>
+            </div>
+            <div class="mb-3">
+              <label for="ref_audio" class="form-label">参考音频文件（可选）</label>
+              <input type="file" class="form-control" id="ref_audio" name="ref_audio" accept="audio/*">
+              <div class="form-text">上传一个音频文件作为参考，帮助生成相似风格的音乐</div>
             </div>
           </form>
         </div>
@@ -220,6 +225,7 @@ function initLyricPage() {
     const lyrics = $('#lyrics-display').text();
     const format = $('#format').val();
     const prompt = $('#prompt').val();
+    const refAudioFile = $('#ref_audio')[0].files[0];
     
     if (!lyrics.trim()) {
       showMessage('没有歌词内容，无法生成歌曲', 'warning');
@@ -241,31 +247,45 @@ function initLyricPage() {
     
     showMessage('正在生成歌曲，请稍候...', 'info');
     
-    $.post('/generate_song_with_acestep/{{ lyric.id }}', {
-      lyrics: lyrics,
-      format: format,
-      prompt: prompt
-    }, function(data) {
-      if (data.success) {
-        showMessage('歌曲生成成功！', 'success');
-        
-        // 更新歌曲URL并显示音频播放器
-        updateSongPlayer(data.song_url);
-        
-        // 更新数据库中的歌曲URL
-        $.post('/update_song_url/{{ lyric.id }}', {
-          song_url: data.song_url
-        });
-      } else {
-        showMessage(data.error || '歌曲生成失败', 'danger');
+    // 创建FormData对象来处理文件上传
+    const formData = new FormData();
+    formData.append('lyrics', lyrics);
+    formData.append('format', format);
+    formData.append('prompt', prompt);
+    if (refAudioFile) {
+      formData.append('ref_audio', refAudioFile);
+    }
+    
+    $.ajax({
+      url: '/generate_song_with_acestep/{{ lyric.id }}',
+      type: 'POST',
+      data: formData,
+      processData: false,
+      contentType: false,
+      success: function(data) {
+        if (data.success) {
+          showMessage('歌曲生成成功！', 'success');
+          
+          // 更新歌曲URL并显示音频播放器
+          updateSongPlayer(data.song_url);
+          
+          // 更新数据库中的歌曲URL
+          $.post('/update_song_url/{{ lyric.id }}', {
+            song_url: data.song_url
+          });
+        } else {
+          showMessage(data.error || '歌曲生成失败', 'danger');
+        }
+      },
+      error: function() {
+        showMessage('歌曲生成失败，请重试', 'danger');
+      },
+      complete: function() {
+        // 恢复按钮状态
+        $('#generate-btn-text').show();
+        $('#generate-btn-loading').hide();
+        $('#generate-song-btn').prop('disabled', false);
       }
-    }).fail(function() {
-      showMessage('歌曲生成失败，请重试', 'danger');
-    }).always(function() {
-      // 恢复按钮状态
-      $('#generate-btn-text').show();
-      $('#generate-btn-loading').hide();
-      $('#generate-song-btn').prop('disabled', false);
     });
   };
 
