@@ -118,3 +118,9 @@ Thumbs.db
 
 song/
 outputs/
+uploads/
+
+# Test files management
+# Keep only essential test files, archive others
+test_archive/
+tests/

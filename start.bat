@@ -55,7 +55,12 @@ python app.py
 
 :: 如果应用异常退出，暂停显示错误信息
 if errorlevel 1 (
+
+
     echo.
     echo 应用启动失败，请检查错误信息
-    pause
+    
+    
+
+    
 ) 
